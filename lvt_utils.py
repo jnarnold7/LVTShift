@@ -1239,7 +1239,7 @@ def model_lvt_shift(df: pd.DataFrame, land_value_col: str, improvement_value_col
             0
         )
 
-    result_df.head()
+    result_df['property_category'] = result_df['current_use'].apply(categorize_property_type)
 
     # Calculate total revenue with new system
     new_total_revenue = float(result_df['new_tax'].sum())
@@ -1249,7 +1249,7 @@ def model_lvt_shift(df: pd.DataFrame, land_value_col: str, improvement_value_col
     print(f"Target revenue: ${current_revenue:,.2f}")
     print(f"Revenue difference: ${new_total_revenue - current_revenue:,.2f} ({(new_total_revenue/current_revenue - 1)*100:.4f}%)")
 
-    category_summary = calculate_category_tax_summary(result_df)
+    category_summary = calculate_category_tax_summary(result_df, category_col='property_category')
     print_category_tax_summary(category_summary, f"Full LVT Tax Change by Property Category")
 
     return millage_rate, new_total_revenue, result_df
@@ -1343,9 +1343,33 @@ def categorize_property_type(prop_use_desc: str) -> str:
         "Utilities": ["Utility", "Utilities", "Pipeline", "Transmission"],
         "Parking": ["Parking", "Parking Lot", "Parking Garage"]
     }
+
+    louisville_category_mapping = {
+        "Single Family": ["Res 1 Family Dwelling"],
+        "Small Multi-Family (2-4 units)": ["Com Tri-Plex Apartment", "Res 2 Family Dwelling Duplex", "Res Patio/Condos"],
+        "Large Multi-Family (5+ units)": ["Apartments", "Res Condo 51 or More Units", "Res Condo Land and Amenities", "Sec. 42 Tax Incentive"],
+        "Other Residential": ["OMobile Home With Land", "Vacation Home", "Manufactured Home"],
+        "Mobile Home Park": ["Com Mobile Home Parks"],
+        "Vacant Land": ["Res Vacant Land", "Com Vacant Land"],
+        "Agricultural": ["Agricultural Vacant Land", "Agricultural With Dwelling"],
+        "Retail/Service/Commercial": [
+            "Com Auto Services", "Com Cell Tower", "Com Condo Land and Amenities", "Com Condos", "Com Entertainment",
+            "Com Hospitals/Nursing Homes", "Com Medical Clinic/Offices", "Com Motels/Hotels", "Com Non-Exempt Schools", 
+            "Com Office", "Com Paving, Fencing, Yard Item", "Com Restaurant", "Com Retail", "Com Retail",
+            "Com Short Term Rental", "Com Retail", "Com Warehouse", "Mixed Use Res and Comm"
+        ],
+        "Industrial": ["Industrial Office", "Industrial Warehouse", "Manufacturing"],
+        "Exempt": ["Exempt Education", "Exempt Federal Gov't", "Exempt Local Gov't", "Exempt Metro Government", 
+            "Institutional", "Exempt Open Space", "Exempt Other", "Exempt Parking", "Exempt Religious",
+            "Exempt Right of Way", "Exempt State Gov't", "REMF Voids (Don't Use)"
+        ],
+        "Utilities": ["Telecom Companies", "Utility Commercial", "Utility Industrial", "Transmission"],
+        "Parking": ["Com Parking Facilities"],
+        "Outbuildings": ["Outbuildings"]
+    }
     
     # Check each category for matches
-    for category, keywords in category_mapping.items():
+    for category, keywords in louisville_category_mapping.items():
         for keyword in keywords:
             if keyword.lower() in prop_use_desc.lower():
                 return category
